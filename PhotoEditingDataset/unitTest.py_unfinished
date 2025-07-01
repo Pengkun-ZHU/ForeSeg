@@ -1,0 +1,104 @@
+import unittest
+from unittest.mock import patch, MagicMock
+import os
+import numpy as np
+from PIL import Image
+import rawpy
+import torch
+
+# Import your dataset class (adjust the import path as needed)
+from PhotoEditingDataset import PhotoEditingDataset
+
+class TestPhotoEditingDataset(unittest.TestCase):
+    
+    def setUp(self):
+        # Set up test directories and mock data
+        self.raw_dir = "test_raw"
+        self.edited_dir = "test_edited"
+        self.raw_images = ["img1.arw", "img2.arw"]
+        self.edited_images = ["img1.jpg", "img2.jpg"]
+        
+        # Create mock file lists
+        os.listdir = MagicMock(side_effect=[self.raw_images, self.edited_images])
+        
+        # Mock image data
+        self.mock_raw_data = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        self.mock_edited_data = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        
+        # Mock transform
+        self.mock_transform = MagicMock()
+        self.mock_transform.return_value = "transformed_image"
+
+    @patch('rawpy.imread')
+    @patch('PIL.Image.open')
+    def test_init(self, mock_image_open, mock_rawpy_imread):
+        # Test initialization with equal number of images
+        dataset = PhotoEditingDataset(self.raw_dir, self.edited_dir)
+        
+        # Check if directories are set correctly
+        self.assertEqual(dataset.raw_dir, self.raw_dir)
+        self.assertEqual(dataset.edited_dir, self.edited_dir)
+        
+        # Check if image lists are loaded
+        self.assertEqual(dataset.raw_images, self.raw_images)
+        self.assertEqual(dataset.edited_images, self.edited_images)
+        
+        # Test assertion when sizes don't match
+        with self.assertRaises(AssertionError):
+            os.listdir = MagicMock(side_effect=[self.raw_images, ["img1.jpg"]])
+            PhotoEditingDataset(self.raw_dir, self.edited_dir)
+
+    @patch('rawpy.imread')
+    @patch('PIL.Image.open')
+    def test_len(self, mock_image_open, mock_rawpy_imread):
+        dataset = PhotoEditingDataset(self.raw_dir, self.edited_dir)
+        self.assertEqual(len(dataset), len(self.raw_images))
+
+    @patch('PIL.Image.open')
+    @patch('rawpy.imread')
+    def test_getitem(self, mock_rawpy, mock_pil_open):
+        # Setup rawpy mock
+        mock_raw = MagicMock()
+        mock_raw.postprocess.return_value = self.mock_raw_data
+        mock_rawpy.return_value = mock_raw
+
+        # Setup PIL Image mock
+        mock_image = MagicMock(spec=Image.Image)
+        mock_image.convert.return_value = mock_image
+        # Simulate array conversion by returning our test data when numpy array is requested
+        mock_image.__array__ = lambda x, dtype=None: self.mock_edited_data
+        mock_pil_open.return_value = mock_image
+
+        dataset = PhotoEditingDataset(self.raw_dir, self.edited_dir)
+        raw, edited = dataset[0]
+
+        # Verify raw processing
+        mock_rawpy.assert_called_once()
+        mock_raw.postprocess.assert_called_once()
+        np.testing.assert_array_equal(raw, self.mock_raw_data)
+
+        # Verify edited image processing
+        mock_pil_open.assert_called_once()
+        mock_image.convert.assert_called_once_with('RGB')
+        np.testing.assert_array_equal(edited, self.mock_edited_data)
+
+
+    @patch('rawpy.imread')
+    @patch('PIL.Image.open')
+    def test_process_raw(self, mock_image_open, mock_rawpy_imread):
+        # Set up mocks
+        mock_raw = MagicMock()
+        mock_raw.postprocess.return_value = self.mock_raw_data
+        mock_rawpy_imread.return_value = mock_raw
+        
+        dataset = PhotoEditingDataset(self.raw_dir, self.edited_dir)
+        
+        raw_path = os.path.join(self.raw_dir, self.raw_images[0])
+        result = dataset.__getitem__(raw_path)
+        
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.shape, self.mock_raw_data.shape)
+
+if __name__ == '__main__':
+    unittest.main()
+
