@@ -14,11 +14,11 @@ from torchvision.transforms import ToPILImage
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = UNet(in_channels=3, out_classes=1, residual=True ).to(device)
-model.load_state_dict( torch.load( 'unet_model.pth' ) )
+model.load_state_dict( torch.load( 'your_model.pth' ) )
 model.eval()
 
-# image = Image.open(r"E:\dataset\edited\a0013-MB_20030906_001.tif").convert("RGB")
-image = Image.open(r"E:\ppr10k\source_360p\44_4.tif").convert("RGB")
+img_id = "001"
+image = Image.open(rf"YourPath\{img_id}.tif").convert("RGB")
 
 # Define the target height (360p)
 target_height = 360
