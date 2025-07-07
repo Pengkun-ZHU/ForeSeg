@@ -9,8 +9,6 @@ from .decoding import Decoder
 from .conv import ConvolutionalBlock
 import torchvision.models as models
 
-__all__ = ['UNet', 'UNet2D', 'UNet3D']
-
 
 class UNet(nn.Module):
     def __init__(
