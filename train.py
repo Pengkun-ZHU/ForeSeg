@@ -54,8 +54,8 @@ if __name__ == '__main__':
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize
     ])
     """
-    src_dir = r"E:\ppr10k\source_360p"
-    mask_dir = r"E:\ppr10k\masks_360p"
+    src_dir = r"Your src image path"
+    mask_dir = r"Your mask image path"
 
     # Split dataset into train and validation
     train_dataset = PhotoEditingDataset(
