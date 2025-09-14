@@ -6,43 +6,6 @@ import rawpy
 import os
 import torchvision.transforms as transforms
 
-
-"""
-class PhotoEditingDataset( Dataset ):
-    def __init__( self, raw_dir, edited_dir, transform=None ):
-        self.raw_dir = raw_dir
-        self.edited_dir = edited_dir
-        self.transform = transform
-        self.raw_images = os.listdir( raw_dir )
-        self.edited_images = os.listdir( edited_dir )
-        assert len( self.raw_images ) == len( self.edited_images ),\
-                f"Size mismatched in {raw_dir} vs {edited_dir}.\n" 
-        #TODO: ensure same suffix for raw and edited, respectively, so as to ensure their order is well aligned.
-
-    def __len__( self ):
-        return len( self.raw_images )
-
-    def __getitem__( self, idx ):
-        raw_path = os.path.join( self.raw_dir, self.raw_images[idx] )
-        edited_path = os.path.join( self.edited_dir, self.edited_images[idx] )
-        #TODO: support grayscale to tradeoff memory overhead with quality.
-
-        def _process_raw( raw_path ):
-            with rawpy.imread( raw_path ) as raw:
-                rgb = raw.postprocess() # N.B. If needed, pass output_bps=16 into postprocess to get 16 bits output, and divide by 511 for normalize.
-            return rgb.astype( np.float32 ) / 255.0 # Normalize to [0, 1] for faster convergence.
-
-        def _process_edited( edited_path ):
-            return np.array( Image.open( edited_path ).convert( "RGB" ) ).astype( np.float32 ) / 255.0
-
-        raw_image = _process_raw( raw_path )
-        edited_image = _process_edited( edited_path )
-        # TODO: add a transfrom option
-        return raw_image, edited_image
-"""
-
-
-
 class PhotoEditingDataset( Dataset ):
     def __init__( self, src_dir, mask_dir, transform=None ):
         self.src_dir = src_dir
