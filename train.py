@@ -39,12 +39,23 @@ if __name__ == '__main__':
     fname = os.path.join( parent_dir, model_name )
     if os.path.isfile( fname ):
         print( f"{fname} exists, resume its training instead of creating a new.\n" )
-        model.load_state_dict(torch.load(fname))
+        model.load_state_dict(torch.load(fname, weights_only=True))
+
+    # Compile model for faster execution (PyTorch 2.0+)
+    try:
+        model = torch.compile(model)
+    except Exception:
+        pass  # torch.compile unavailable in this environment
 
 
     # Loss and optimizer
     criterion = nn.BCEWithLogitsLoss()  # Binary cross-entropy for binary segmentation
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
+
+    # Automatic Mixed Precision scaler (PyTorch 2.x, CUDA only)
+    use_amp = torch.cuda.is_available()
+    amp_device = 'cuda' if use_amp else 'cpu'
+    scaler = torch.amp.GradScaler(device=amp_device, enabled=use_amp)
 
     # Load dataset
     """
@@ -100,7 +111,8 @@ if __name__ == '__main__':
         batch_size=8,  # Batch size
         shuffle=True,  # Shuffle the data
         num_workers=4,  # Number of subprocesses for data loading
-        pin_memory=True  # Faster data transfer to CUDA-enabled GPUs
+        pin_memory=True,  # Faster data transfer to CUDA-enabled GPUs
+        persistent_workers=True  # Keep workers alive between epochs
     )
     validation_loader = DataLoader(
         val_dataset,
@@ -108,7 +120,8 @@ if __name__ == '__main__':
         batch_size=8,  # Can be different from train batch_size
         shuffle=False,  # Typically no need to shuffle validation data
         num_workers=4,  # For parallel data loading
-        pin_memory=True  # For faster GPU transfer if using GPU
+        pin_memory=True,  # For faster GPU transfer if using GPU
+        persistent_workers=True  # Keep workers alive between epochs
     )
 
 
@@ -131,12 +144,14 @@ if __name__ == '__main__':
                 masks = pad_to_divisible( masks )
                 images = images.to( device ).unsqueeze( 0 )
                 masks = masks.to(device).unsqueeze( 0 )
-                outputs = model( images )
-                loss = criterion( outputs, masks )
-                # Backward and optmize
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+                # Backward and optimize
+                optimizer.zero_grad(set_to_none=True)
+                with torch.autocast(device_type=amp_device, enabled=use_amp):
+                    outputs = model( images )
+                    loss = criterion( outputs, masks )
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
 
                 running_loss += loss.item()
             """
